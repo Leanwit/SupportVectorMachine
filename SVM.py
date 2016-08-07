@@ -29,12 +29,13 @@ class SVM(object):
         self.cantEntrenamiento = entrenamiento
         self.cantTest = test
         self.definirConjuntos()
-        if os.path.isfile(self.dir_path+'/persistencia/svm.pkl'):
-            self.clf = joblib.load(self.dir_path+'/persistencia/svm.pkl')
-        else:
-            self.clf = svm.SVC(C=c,kernel=kernel)
+        # if os.path.isfile(self.dir_path+'/persistencia/svm.pkl'):
+        #     self.clf = joblib.load(self.dir_path+'/persistencia/svm.pkl')
+        # else:
+        #     self.clf = svm.SVC(C=c,kernel=kernel)
+        self.clf = svm.SVC(C=c,kernel=kernel)
 
-    def training(self):
+    def training(self):        
         self.clf.fit(self.xEntrenamiento,self.yEntrenamiento)
 
     def agregarDocumentosEntrenamiento(self,X,Y):
