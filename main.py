@@ -6,6 +6,10 @@ from model import *
 
 import os
 
+import sys
+reload(sys);
+sys.setdefaultencoding("utf8")
+
 lecturaArchivo('data/documentos.csv','entrenamiento')
 
 X = getDocumentosAtributos('entrenamiento')

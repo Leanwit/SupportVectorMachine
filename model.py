@@ -1,7 +1,7 @@
 from pony.orm import *
 from Configuracion import *
 from pattern.web import *
-from pattern.vector import Document
+from pattern.vector import Document, distance, COSINE
 import sys
 
 unaConfiguracion = Configuracion()
@@ -32,30 +32,156 @@ class Atributo(db.Entity):
     queryTermNumberTitle = Optional(int)
     queryTermNumberUrlValues = Optional(int)
     queryTermNumberBody = Optional(int)
+
     queryTermRatioDocumento = Optional(float)
-    queryTermRatioUrl = Optional(float)
     queryTermRatioTitle = Optional(float)
     queryTermRatioUrlValues = Optional(float)
+    queryTermRatioBody = Optional(float)
 
-    def setearQueryTermNumber(self,unDocumento):
-        unaConsulta = unDocumento.consulta
-        unaQuery = Document(unaConsulta.clave).words
-        html = Document(unDocumento.html).words
-        titulo = Document(unDocumento.titulo).words
+    # queryIDFDocumento = Optional(float)
+    # queryIDFTitle = Optional(float)
+    # queryIDFUrlValues = Optional(float)
+    # queryIDFBody = Optional(float)
+
+    querySumTermFrequencyDocumento = Optional(float)
+    querySumTermFrequencyTitle = Optional(float)
+    querySumTermFrequencyUrlValues = Optional(float)
+    querySumTermFrequencyBody = Optional(float)
+
+    queryMinTermFrequencyDocumento = Optional(float)
+    queryMinTermFrequencyTitle = Optional(float)
+    queryMinTermFrequencyUrlValues = Optional(float)
+    queryMinTermFrequencyBody = Optional(float)
+
+    queryMaxTermFrequencyDocumento = Optional(float)
+    queryMaxTermFrequencyTitle = Optional(float)
+    queryMaxTermFrequencyUrlValues = Optional(float)
+    queryMaxTermFrequencyBody = Optional(float)
+
+    queryVarianceTermFrequencyDocumento = Optional(float)
+    queryVarianceTermFrequencyTitle = Optional(float)
+    queryVarianceTermFrequencyUrlValues = Optional(float)
+    queryVarianceTermFrequencyBody = Optional(float)
+
+    queryVectorSpaceModelDocumento = Optional(float)
+    queryVectorSpaceModelTitle = Optional(float)
+    queryVectorSpaceModelUrlValues = Optional(float)
+    queryVectorSpaceModelBody = Optional(float)
+
+    def setQueryTermNumber(self,unDocumento,unaQuery,html,titulo,body,urlValues):
         self.queryTermNumberDocumento = self.contarNumeroAparicion(html,unaQuery)
         self.queryTermNumberUrl = self.contarNumeroAparicion(unDocumento.url,unaQuery)
         self.queryTermNumberTitle = self.contarNumeroAparicion(titulo,unaQuery)
-        self.queryTermNumberUrlValues = self.contarNumeroAparicion(unDocumento.urlValues,unaQuery)
-        self.queryTermNumberBody = self.contarNumeroAparicion(unDocumento.body,unaQuery)
+        self.queryTermNumberUrlValues = self.contarNumeroAparicion(urlValues,unaQuery)
+        self.queryTermNumberBody = self.contarNumeroAparicion(body,unaQuery)
+
+    def setQueryTermRatio(self,unDocumento,unaQuery,html,titulo,body,urlValues):
+        self.queryTermRatioDocumento = self.contarFrecuenciaAparicion(html,unaQuery)
+        self.queryTermRatioTitle = self.contarFrecuenciaAparicion(titulo,unaQuery)
+        self.queryTermRatioUrlValues = self.contarFrecuenciaAparicion(urlValues,unaQuery)
+        self.queryTermRatioBody = self.contarFrecuenciaAparicion(body,unaQuery)
+
+    def setIDF(self,unDocumento,unaQuery,html,titulo,body,urlValues):
+        self.queryIDFDocumento = self.calcularIDF(html,unaQuery)
+        self.queryIDFTitle = self.calcularIDF(titulo,unaQuery)
+        self.queryIDFUrlValues = self.calcularIDF(urlValues,unaQuery)
+        self.queryIDFBody = self.calcularIDF(body,unaQuery)
+
+    def setQuerySumTermFrequency(self,unDocumento,unaQuery,html,titulo,body,urlValues):
+        self.querySumTermFrequencyDocumento = self.calcularSumTermFrequency(html,unaQuery)
+        self.querySumTermFrequencyTitle = self.calcularSumTermFrequency(titulo,unaQuery)
+        self.querySumTermFrequencyUrlValues = self.calcularSumTermFrequency(urlValues,unaQuery)
+        self.querySumTermFrequencyBody = self.calcularSumTermFrequency(body,unaQuery)
+
+    def setQueryMinTermFrequency(self,unDocumento,unaQuery,html,titulo,body,urlValues):
+        self.queryMinTermFrequencyDocumento = self.calcularMinTermFrequency(html,unaQuery)
+        self.queryMinTermFrequencyTitle = self.calcularMinTermFrequency(titulo,unaQuery)
+        self.queryMinTermFrequencyUrlValues = self.calcularMinTermFrequency(urlValues,unaQuery)
+        self.queryMinTermFrequencyBody = self.calcularMinTermFrequency(body,unaQuery)
+
+
+    def setQueryMaxTermFrequency(self,unDocumento,unaQuery,html,titulo,body,urlValues):
+        self.queryMaxTermFrequencyDocumento = self.calcularMaxTermFrequency(html,unaQuery)
+        self.queryMaxTermFrequencyTitle = self.calcularMaxTermFrequency(titulo,unaQuery)
+        self.queryMaxTermFrequencyUrlValues = self.calcularMaxTermFrequency(urlValues,unaQuery)
+        self.queryMaxTermFrequencyBody = self.calcularMaxTermFrequency(body,unaQuery)
+
+    def setQueryVarianceTermFrequency(self,unDocumento,unaQuery,html,titulo,body,urlValues):
+        self.queryVarianceTermFrequencyDocumento = self.calcularVarianceTermFrequency(html,unaQuery)
+        self.queryVarianceTermFrequencyTitle = self.calcularVarianceTermFrequency(titulo,unaQuery)
+        self.queryVarianceTermFrequencyUrlValues = self.calcularVarianceTermFrequency(urlValues,unaQuery)
+        self.queryVarianceTermFrequencyBody = self.calcularVarianceTermFrequency(body,unaQuery)
+
+    def setQueryVectorSpaceModel(self,unDocumento,unaQuery,html,titulo,body,urlValues):
+        self.queryVectorSpaceModelDocumento = self.calcularVectorSpaceModel(html,unaQuery)
+        self.queryVectorSpaceModelTitle = self.calcularVectorSpaceModel(titulo,unaQuery)
+        self.queryVectorSpaceModelUrlValues = self.calcularVectorSpaceModel(urlValues,unaQuery)
+        self.queryVectorSpaceModelBody = self.calcularVectorSpaceModel(body,unaQuery)
+
 
 
     def contarNumeroAparicion(self,string,unaQuery):
         contador = 0
         for unTermino in unaQuery:
             if unTermino in string:
-                contador += 1
+                 contador += 1
         return contador
 
+    def contarFrecuenciaAparicion(self,string,unaQuery):
+        contador = 0
+        for unTermino in unaQuery:
+            try:
+                contador += string[unTermino]
+            except:
+                pass
+        contador = contador / len(unaQuery)
+        return contador
+
+    def calcularIDF(self,string,unaQuery):
+        contador = 0
+        for unTermino in unaQuery:
+            if unTermino in string:
+                 contador += string.tfidf(unTermino)
+        return contador
+
+    def calcularSumTermFrequency(self,string,unaQuery):
+        contador = 0
+        for unTermino in unaQuery:
+            if unTermino in string:
+                 contador += string.tf(unTermino)
+        return contador
+
+    def calcularMinTermFrequency(self,string,unaQuery):
+        contador = 1.1
+        for unTermino in unaQuery:
+            if unTermino in string:
+                 if contador > string.tf(unTermino):
+                    contador = string.tf(unTermino)
+        return contador
+
+    def calcularMaxTermFrequency(self,string,unaQuery):
+        contador = 0
+        for unTermino in unaQuery:
+            if unTermino in string:
+                 if contador < string.tf(unTermino):
+                    contador = string.tf(unTermino)
+        return contador
+
+    def calcularVarianceTermFrequency(self,string,unaQuery):
+        contador = 0
+        for unTermino in unaQuery:
+            if unTermino in string:
+                contador += string.tf(unTermino)
+        promedio = contador / len(unaQuery)
+        contador = 0
+        for unTermino in unaQuery:
+            if unTermino in string:
+                contador += (string.tf(unTermino)- promedio)**2
+        contador = contador / len(unaQuery)
+        return contador
+
+    def calcularVectorSpaceModel(self,string,unaQuery):
+        return distance(string, unaQuery, method=COSINE)
 
 db.bind(unaConfiguracion.bd, host=unaConfiguracion.host, user=unaConfiguracion.user, passwd=unaConfiguracion.passwd, db=unaConfiguracion.db)
 db.generate_mapping(create_tables=True)
@@ -82,8 +208,23 @@ def crearDocumento(url,clase,consulta):
     return unDocumento
 
 def crearAtributos(unDocumento):
+    unaConsulta = unDocumento.consulta
+    unaQuery = Document(unaConsulta.clave)
+    html = Document(unDocumento.html)
+    titulo = Document(unDocumento.titulo)
+    body = Document(unDocumento.body)
+    urlValues = Document(unDocumento.urlValues)
+
     unAtributo = Atributo(documento=unDocumento)
-    unAtributo.setearQueryTermNumber(unDocumento)
+    unAtributo.setQueryTermNumber(unDocumento,unaQuery.words,html.words,titulo.words,body.words,urlValues.words)
+    unAtributo.setQueryTermRatio(unDocumento,unaQuery.vector,html.vector,titulo.vector,body.vector,urlValues.vector)
+    # unAtributo.setIDF(unDocumento,unaQuery,html,titulo,body,urlValues)
+    unAtributo.setQuerySumTermFrequency(unDocumento,unaQuery,html,titulo,body,urlValues)
+    unAtributo.setQueryMinTermFrequency(unDocumento,unaQuery,html,titulo,body,urlValues)
+    unAtributo.setQueryMaxTermFrequency(unDocumento,unaQuery,html,titulo,body,urlValues)
+    unAtributo.setQueryVarianceTermFrequency(unDocumento,unaQuery,html,titulo,body,urlValues)
+    unAtributo.setQueryVectorSpaceModel(unDocumento,unaQuery.vector,html.vector,titulo.vector,body.vector,urlValues.vector)
+
     return unAtributo
 
 def getDocumentosAtributos(metodo):
