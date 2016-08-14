@@ -1,11 +1,12 @@
 from pony.orm import *
 from Configuracion import *
 from pattern.web import *
-from pattern.vector import Document, distance, COSINE
+from pattern.vector import Document, distance, COSINE, stemmer, PORTER, Model, TFIDF
 import sys
 
 unaConfiguracion = Configuracion()
 db = Database()
+
 
 
 class Consulta(db.Entity):
@@ -38,11 +39,6 @@ class Atributo(db.Entity):
     queryTermRatioUrlValues = Optional(float)
     queryTermRatioBody = Optional(float)
 
-    # queryIDFDocumento = Optional(float)
-    # queryIDFTitle = Optional(float)
-    # queryIDFUrlValues = Optional(float)
-    # queryIDFBody = Optional(float)
-
     querySumTermFrequencyDocumento = Optional(float)
     querySumTermFrequencyTitle = Optional(float)
     querySumTermFrequencyUrlValues = Optional(float)
@@ -67,6 +63,27 @@ class Atributo(db.Entity):
     queryVectorSpaceModelTitle = Optional(float)
     queryVectorSpaceModelUrlValues = Optional(float)
     queryVectorSpaceModelBody = Optional(float)
+
+    querySumTfidfDocumento = Optional(float)
+    querySumTfidfTitle = Optional(float)
+    querySumTfidfUrlValues = Optional(float)
+    querySumTfidfBody = Optional(float)
+
+    queryMinTfidfDocumento = Optional(float)
+    queryMinTfidfTitle = Optional(float)
+    queryMinTfidfUrlValues = Optional(float)
+    queryMinTfidfBody = Optional(float)
+
+    queryMaxTfidfDocumento = Optional(float)
+    queryMaxTfidfTitle = Optional(float)
+    queryMaxTfidfUrlValues = Optional(float)
+    queryMaxTfidfBody = Optional(float)
+
+    queryPromTfidfDocumento = Optional(float)
+    queryPromTfidfTitle = Optional(float)
+    queryPromTfidfUrlValues = Optional(float)
+    queryPromTfidfBody = Optional(float)
+
 
     def setQueryTermNumber(self,unDocumento,unaQuery,html,titulo,body,urlValues):
         self.queryTermNumberDocumento = self.contarNumeroAparicion(html,unaQuery)
@@ -218,7 +235,6 @@ def crearAtributos(unDocumento):
     unAtributo = Atributo(documento=unDocumento)
     unAtributo.setQueryTermNumber(unDocumento,unaQuery.words,html.words,titulo.words,body.words,urlValues.words)
     unAtributo.setQueryTermRatio(unDocumento,unaQuery.vector,html.vector,titulo.vector,body.vector,urlValues.vector)
-    # unAtributo.setIDF(unDocumento,unaQuery,html,titulo,body,urlValues)
     unAtributo.setQuerySumTermFrequency(unDocumento,unaQuery,html,titulo,body,urlValues)
     unAtributo.setQueryMinTermFrequency(unDocumento,unaQuery,html,titulo,body,urlValues)
     unAtributo.setQueryMaxTermFrequency(unDocumento,unaQuery,html,titulo,body,urlValues)
@@ -230,18 +246,108 @@ def crearAtributos(unDocumento):
 def getDocumentosAtributos(metodo):
     with db_session:
         X = []
+        listaDocumentos = []
         if metodo == 'predecir':
             for p in select(p for p in Documento if p.clase == -1):
                 atributos = Atributo.get(documento = p)
                 atributosAux = getAtributos(atributos)
-
                 X.append(atributosAux)
+                listaDocumentos.append(p.id)
         elif metodo == 'entrenamiento':
             for p in select(p for p in Documento if p.clase != -1):
                 atributos = Atributo.get(documento = p)
                 atributosAux = getAtributos(atributos)
                 X.append(atributosAux)
+                listaDocumentos.append(p.id)
+
+    # Metodo para obtener atributos que dependen del corpus entero
+    getDocumentosAtributosCorpus(listaDocumentos)
     return X
+
+def getDocumentosAtributosCorpus(listaDocumentos):
+    with db_session:
+        for unaConsulta in Consulta.select():
+            listaDocumentosHtml, listaDocumentosBody, listaDocumentosUrlValues, listaDocumentosTitle,listaDocumentosID = ([] for i in range(5))
+            for unDocumento in listaDocumentos:
+                unDocumento = Documento[unDocumento]
+                if unaConsulta.clave == unDocumento.consulta.clave:
+                    listaDocumentosHtml.append(Document(unDocumento.html,stemmer=PORTER,weigth=TFIDF))
+                    listaDocumentosBody.append(Document(unDocumento.body,stemmer=PORTER,weigth=TFIDF))
+                    listaDocumentosUrlValues.append(Document(unDocumento.urlValues,stemmer=PORTER,weigth=TFIDF))
+                    listaDocumentosTitle.append(Document(unDocumento.titulo,stemmer=PORTER,weigth=TFIDF))
+                    listaDocumentosID.append(unDocumento.id)
+            modelos = {}
+            modelos['documento'] = Model(listaDocumentosHtml)
+            modelos['body'] = Model(listaDocumentosBody)
+            modelos['urlValues'] = Model(listaDocumentosUrlValues)
+            modelos['title'] = Model(listaDocumentosTitle)
+            calcularAtributosCorpus(modelos,unaConsulta,listaDocumentosID)
+
+def calcularAtributosCorpus(modelos,unaConsulta,listaDocumentos):
+    for unModelo in modelos:
+        calcularAtributosCorpusSum(modelos[unModelo],unModelo,unaConsulta,listaDocumentos)
+        calcularAtributosCorpusMin(modelos[unModelo],unModelo,unaConsulta,listaDocumentos)
+        calcularAtributosCorpusMax(modelos[unModelo],unModelo,unaConsulta,listaDocumentos)
+        calcularAtributosCorpusProm(modelos[unModelo],unModelo,unaConsulta,listaDocumentos)
+
+
+
+
+def calcularAtributosCorpusSum(modelos,atributo,consulta,listaDocumentos):
+    contador = 0
+    listaDocumentosBD = Documento.select(lambda p: p.consulta == consulta)
+    consulta = Document(consulta.clave,stemmer=PORTER)
+    for unDocumento,unDocumentoBD in zip(modelos,listaDocumentos):
+        for unaConsulta in consulta:
+            contador += unDocumento.tfidf(unaConsulta)
+        unAtributo = Atributo.get(documento = unDocumentoBD)
+        diccionario = {'querySumTfidf'+getNameAtributo(atributo):contador}
+        unAtributo.set(**diccionario)
+
+def getNameAtributo(unAtributo):
+    if "documento" in unAtributo:
+        return "Documento"
+    elif "body" in unAtributo:
+        return "Body"
+    elif "url" in unAtributo:
+        return "UrlValues"
+    elif "title" in unAtributo:
+        return "Title"
+
+def calcularAtributosCorpusMax(modelos,atributo,consulta,listaDocumentos):
+    consulta = Document(consulta.clave,stemmer=PORTER)
+    for unDocumento,unDocumentoBD in zip(modelos,listaDocumentos):
+        contador = 0
+        for unaConsulta in consulta:
+            contadorAux = unDocumento.tfidf(unaConsulta)
+            if contador < contadorAux:
+                contador = contadorAux
+        unAtributo = Atributo.get(documento = unDocumentoBD)
+        diccionario = {'queryMaxTfidf'+getNameAtributo(atributo):contador}
+        unAtributo.set(**diccionario)
+
+def calcularAtributosCorpusMin(modelos,atributo,consulta,listaDocumentos):
+    consulta = Document(consulta.clave,stemmer=PORTER)
+    for unDocumento,unDocumentoBD in zip(modelos,listaDocumentos):
+        contador = 100
+        for unaConsulta in consulta:
+            contadorAux = unDocumento.tfidf(unaConsulta)
+            if contador > contadorAux:
+                contador = contadorAux
+        unAtributo = Atributo.get(documento = unDocumentoBD)
+        diccionario = {'queryMinTfidf'+getNameAtributo(atributo):contador}
+        unAtributo.set(**diccionario)
+
+def calcularAtributosCorpusProm(modelos,atributo,consulta,listaDocumentos):
+    consulta = Document(consulta.clave,stemmer=PORTER)
+    for unDocumento,unDocumentoBD in zip(modelos,listaDocumentos):
+        contador = 0
+        for unaConsulta in consulta:
+            contador += unDocumento.tfidf(unaConsulta)
+        contador = contador / len(consulta)
+        unAtributo = Atributo.get(documento = unDocumentoBD)
+        diccionario = {'queryPromTfidf'+getNameAtributo(atributo):contador}
+        unAtributo.set(**diccionario)
 
 def getAtributos(atributos):
     atributosAux = []

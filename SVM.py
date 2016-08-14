@@ -35,7 +35,7 @@ class SVM(object):
         #     self.clf = svm.SVC(C=c,kernel=kernel)
         self.clf = svm.SVC(C=c,kernel=kernel)
 
-    def training(self):        
+    def training(self):
         self.clf.fit(self.xEntrenamiento,self.yEntrenamiento)
 
     def agregarDocumentosEntrenamiento(self,X,Y):
@@ -53,10 +53,12 @@ class SVM(object):
         return round((aciertos*100)/cantidadTotal,2)
 
     def predecir(self,conjunto):
-        if len(conjunto) == 1:
-            return self.clf.predict(conjunto.reshape(1,-1))
-        else:
-            return self.clf.predict(conjunto)
+        if len(conjunto):
+            if len(conjunto) == 1:
+                return self.clf.predict(conjunto.reshape(1,-1))
+            else:
+                return self.clf.predict(conjunto)
+
     def guardarSVM(self):
         joblib.dump(self.clf, self.dir_path+'/persistencia/svm.pkl')
 

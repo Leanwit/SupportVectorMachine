@@ -1,2 +1,4 @@
 Configuracion.py
 data/
+dev/
+*.pyc

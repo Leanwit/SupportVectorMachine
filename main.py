@@ -6,14 +6,17 @@ from model import *
 
 import os
 
-import sys
-reload(sys);
-sys.setdefaultencoding("utf8")
+# reload(sys)  # Reload does the trick!
+# # sys.setdefaultencoding('UTF8')
+# print sys.getdefaultencoding()
 
 lecturaArchivo('data/documentos.csv','entrenamiento')
 
 X = getDocumentosAtributos('entrenamiento')
 Y = getDocumentosClase()
+
+
+
 unSVM = SVM(1.0,'poly',.7,.3,X,Y)
 unSVM.training()
 print "Precision : " ,unSVM.testing()
